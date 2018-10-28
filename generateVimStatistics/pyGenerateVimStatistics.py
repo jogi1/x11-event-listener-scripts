@@ -6,6 +6,8 @@
 import time
 import json
 import datetime
+import socket
+import sys
 
 keys = {
         'shift_left': 50,
@@ -82,15 +84,6 @@ def generate_keys():
         keys[n] = x
         keys[x] = n
 
-
-def follow(thefile):
-    thefile.seek(0,2)
-    while True:
-        line = thefile.readline()
-        if not line:
-            time.sleep(0.001)
-            continue
-        yield line
 
 def init_info(info):
     info['vim'] = {
@@ -267,9 +260,17 @@ def vim_key(info, event):
     vim_handle_key(info, v, code, event['time'])
     return
 
+
+def follow(sock):
+    while True:
+        line = sock.recv(2048)
+        yield line
+
+
 def main():
-    logfile = open("/tmp/key_events", "r")
-    loglines = follow(logfile)
+    logsocket = socket.socket(socket.AF_UNIX)
+    logsocket.connect(sys.argv[1])
+    loglines = follow(logsocket)
     date = datetime.datetime.today().strftime('%Y-%m-%d_%H%M%S.vlog')
     outputFile = open("/home/jogi/.vimStatistics/" + date, "w+")
 

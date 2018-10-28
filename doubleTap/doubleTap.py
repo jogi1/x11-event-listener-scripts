@@ -6,30 +6,27 @@
 import time
 import json
 import subprocess
+import socket
+import sys
 
 shift_r = 62
 capslock = 66
 
 esc_keys = [shift_r, capslock]
 
-event_file = "/tmp/key_events"
-
 debug = False
 
-def follow(thefile):
-    thefile.seek(0,2)
+def follow(sock):
     while True:
-        line = thefile.readline()
-        if not line:
-            time.sleep(0.001)
-            continue
+        line = sock.recv(2048)
         yield line
 
 if __name__ == '__main__':
     last_time = 0
     focused_window = False
-    logfile = open(event_file ,"r")
-    loglines = follow(logfile)
+    logsocket = socket.socket(socket.AF_UNIX)
+    logsocket.connect(sys.argv[1])
+    loglines = follow(logsocket)
     for line in loglines:
         if debug:
             print line
