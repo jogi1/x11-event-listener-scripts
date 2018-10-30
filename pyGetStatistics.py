@@ -57,7 +57,7 @@ def parse_file(statistics, fname):
         if command.has_key('mode_to'):
             statistics['mode_switch'].update([" to ".join([command['mode'], command['mode_to']])])
 
-
+def print_statistics(statistics):
     print "+" * 30
     for mode in statistics['modes']:
         print "MODE: ({})".format(mode)
@@ -83,6 +83,8 @@ def main():
 
     for f in files:
         parse_file(statistics, os.path.join(PATH, f))
+
+    print_statistics(statistics)
 
 
 
