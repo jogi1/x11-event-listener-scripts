@@ -27,6 +27,18 @@ modifiers = {
             'capslock': 0,
         }
 
+"""
+
+            'save changes': {
+                'event_type': 'key',
+                'handler': doubletap,
+                'key': keys['shift_left'],
+                'ignore_modifiers': [],
+                'interval': doubletap_delay,
+                'xdotool': [['type', ':w'], ['key', 'KP_Enter'] ],
+                },
+"""
+
 def get_settings():
     return {
             'GFiles': {
@@ -55,14 +67,6 @@ def get_settings():
                 'ignore_modifiers': [],
                 'interval': tap_delay,
                 'xdotool': [['key', 'Escape'] ],
-                },
-            'save changes': {
-                'event_type': 'key',
-                'handler': doubletap,
-                'key': keys['shift_left'],
-                'ignore_modifiers': [],
-                'interval': doubletap_delay,
-                'xdotool': [['type', ':w'], ['key', 'KP_Enter'] ],
                 },
             }
 
@@ -98,6 +102,7 @@ def modifiers_active(current, ignore):
         if current[k] == True or current[k] > 0:
             return True
     return False
+
 
 
 
