@@ -8,6 +8,9 @@ import json
 import subprocess
 import socket
 import sys
+import i3ipc
+
+global settings
 
 shift_r = 62
 capslock = 66
@@ -41,6 +44,13 @@ modifiers = {
 
 def get_settings():
     return {
+            'state': {
+                'i3': {
+                    'mode': 'default',
+                    },
+                'vim': False,
+                'window_name': "",
+                },
             'GFiles': {
                 'event_type': 'key',
                 'handler': tap,
@@ -50,6 +60,7 @@ def get_settings():
                 'modifiers': [],
                 'ignore_modifiers': ['shift_right'],
                 'xdotool': [['type',':GFiles'], ['key', 'KP_Enter'] ],
+                'validation': [isVim],
                 },
             'Buffers': {
                 'event_type': 'key',
@@ -59,6 +70,7 @@ def get_settings():
                 'modifiers': ['shift_left'],
                 'ignore_modifiers': ['shift_right'],
                 'xdotool': [['type',':Buffers'], ['key', 'KP_Enter'] ],
+                'validation': [isVim],
                 },
             'escape': {
                 'event_type': 'key',
@@ -67,6 +79,17 @@ def get_settings():
                 'ignore_modifiers': [],
                 'interval': tap_delay,
                 'xdotool': [['key', 'Escape'] ],
+                'validation': [isVim],
+                },
+            'escape-i3': {
+                'event_type': 'key',
+                'handler': tap,
+                'key': keys['capslock'],
+                'ignore_modifiers': [],
+                'interval': tap_delay,
+                'xdotool': [['key', 'Escape'] ],
+                'i3_mode': ['mouse', 'resize'],
+                'validation': [isI3Mode],
                 },
             }
 
@@ -88,9 +111,18 @@ def handle_modifiers(event, modifiers):
             modifiers['capslock'] = False
 
 
-def follow(sock):
+def follow(sock, i3):
     while True:
-        line = sock.recv(2048)
+        try:
+            yield sock.recv(2048)
+        except:
+            line = ""
+
+        try:
+            yield i3.main(0.01)
+        except Exception as e:
+            print e
+            line = ""
         yield line
 
 def modifiers_active(current, ignore):
@@ -164,22 +196,45 @@ def handle_event(event, settings, modifiers):
     release = event['release']
     time = event['time']
     for name, setup in settings.iteritems():
-        if setup['key'] == code:
-            if setup.has_key('modifiers'):
-                if check_modifiers(modifiers, setup['modifiers'], setup['ignore_modifiers']) == False:
+        if name == 'state':
+            continue
+        if setup['key'] != code:
+            continue
+        if setup.has_key('modifiers'):
+            if check_modifiers(modifiers, setup['modifiers'], setup['ignore_modifiers']) == False:
                     continue
-            setup['handler'](setup, code, release, time)
+        for validate in setup['validation']:
+            if not validate(settings, setup):
+                continue
+        setup['handler'](setup, code, release, time)
+
+def i3_mode_change(i3, event):
+    mode = event.__dict__['change']
+    settings['i3']['mode'] = mode
+
+def isVim(settings, setup):
+    return settings['state']['window_name'].endswith('NVIM')
+
+def isI3Mode(settings, setup):
+    return settings['state']['i3']['mode'] in setup['i3_mode']
 
 def main():
     generate_keys()
+
+    i3 = i3ipc.Connection()
+    i3.on("mode", i3_mode_change)
 
     last_time = 0
     focused_window = False
     logsocket = socket.socket(socket.AF_UNIX)
     logsocket.connect(sys.argv[1])
-    loglines = follow(logsocket)
+    logsocket.setblocking(0)
+    loglines = follow(logsocket, i3)
     settings = get_settings()
     for line in loglines:
+        if line == None or len(line) == 0:
+            continue
+        print line
         if debug:
             print line
         try:
@@ -189,29 +244,13 @@ def main():
         if debug:
             print data
         if data['event_type'] == 'focus_change':
-            focused_window = data['window_name'].endswith("NVIM")
+            settings['state']['window_name'] = data['window_name']
 
         if data['event_type'] == 'key':
             handle_modifiers(data, modifiers)
-        if focused_window and data['event_type'] == 'key':
+        if data['event_type'] == 'key':
             handle_event(data, settings,modifiers)
             continue 
-            if data['event_type'] == 'key' and data['code'] in esc_keys:
-                if data['release'] == 1:
-                    if data['time'] - last_time < button_delay:
-                        subprocess.call(["xdotool", "key", "Escape"])
-                if data['release'] == 0:
-                    last_time = data['time']
-
-
-            if data['event_type'] == 'key' and data['code'] in run_fzf:
-                if data['release'] == 1:
-                    if data['time'] - last_time < button_delay:
-                        subprocess.call(["xdotool", "type", ":GFiles"])
-                        subprocess.call(["xdotool", "key", "KP_Enter"])
-                if data['release'] == 0:
-                    last_time = data['time']
-
 
 if __name__ == '__main__':
     main()
