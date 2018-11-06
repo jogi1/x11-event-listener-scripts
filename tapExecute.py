@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 from keys.keys import keys, generate_keys, grouped_keys, keys_uppercase
 
 import time
@@ -118,11 +119,11 @@ def follow(sock, i3):
         except:
             line = ""
 
-        try:
-            yield i3.main(0.01)
-        except Exception as e:
-            print e
-            line = ""
+        #try:
+        #    yield i3.main(0.01)
+        #except Exception as e:
+        #    print e
+        #    line = ""
         yield line
 
 def modifiers_active(current, ignore):
@@ -203,9 +204,13 @@ def handle_event(event, settings, modifiers):
         if setup.has_key('modifiers'):
             if check_modifiers(modifiers, setup['modifiers'], setup['ignore_modifiers']) == False:
                     continue
+        b = False
         for validate in setup['validation']:
             if not validate(settings, setup):
-                continue
+                b = True
+                break
+        if b:
+            continue
         setup['handler'](setup, code, release, time)
 
 def i3_mode_change(i3, event):
@@ -234,7 +239,6 @@ def main():
     for line in loglines:
         if line == None or len(line) == 0:
             continue
-        print line
         if debug:
             print line
         try:
